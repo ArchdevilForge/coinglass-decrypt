@@ -10,6 +10,14 @@ Algorithm:
   Layer 3: AES-128-ECB(encrypted_body, key) → Gzip(JSON)
   Layer 4: Gunzip                          → plain JSON
 
+Key derivation (v=1, universal since 2025):
+  Key0 = base64(url_path)[:16]
+
+Old v=55/66/77 constants (deprecated, no longer in use):
+  v=55 → base64("170b070da9654622")[:16]
+  v=66 → base64("d6537d845a964081")[:16]
+  v=77 → base64("863f08689c97435b")[:16]
+
 Usage:
   from decrypt import fetch_and_decrypt
   data = fetch_and_decrypt("https://capi.coinglass.com/api/spot/rsi/list")
@@ -26,10 +34,9 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 
 
-# Hardcoded constants extracted from CoinGlass webpack module 12471.
-# These are used to derive the first decryption key (Key0) from the `v`
-# response header. Extracted from the Yt function in the webpack bundle.
-#   v=55 → Kt[22],  v=66 → Kt[38],  v=77 → BatcW
+# Historical key constants (found in webpack module 12471).
+# Modern CoinGlass (2025+) uses v=1 universally — these are kept for
+# backward compatibility with old archive data.
 _KEY_TABLE = {
     "55": "170b070da9654622",
     "66": "d6537d845a964081",
@@ -40,8 +47,11 @@ _KEY_TABLE = {
 def _derive_key0(v: str, url: str = "") -> str:
     """Derive the first-layer decryption key from the `v` response header.
 
-    For v=55/66/77: base64(constant from _KEY_TABLE)[:16]
-    For v=1:        base64(url_path)[:16]
+    All current CoinGlass endpoints (100% as of 2025+) return v=1:
+      Key0 = base64(url_path)[:16]
+
+    Legacy v=55/66/77 (no longer in use):
+      Key0 = base64(constant_from_table)[:16]
     """
     if v == "1":
         constant = urlparse(url).path or url.split("?")[0]
@@ -127,6 +137,7 @@ def fetch_and_decrypt(url: str, params: dict = None, timeout: int = 30) -> Dict[
     user = resp.headers.get("user")
     v = resp.headers.get("v")
     if not user or not v:
-        raise ValueError("Missing user/v headers — server returned no encryption")
+        # Plain (non-encrypted) endpoint — return JSON directly
+        return resp.json()
 
     return decrypt(resp.text, user, v, url)

@@ -1,9 +1,35 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-.env
-.venv/
-venv/
+*.pyd
+*.egg
 *.egg-info/
 dist/
 build/
+.eggs/
+
+# Virtual environments
+.env
+.venv/
+venv/
+.venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temp / test artifacts
+*.tmp
+*.bak
+*.log
+*.har  # browser capture exports
+__pycache__/
+
+# Project specific
+coinglass_decrypt/  # installed package copy in workspace (if any)
+.playwright-mcp

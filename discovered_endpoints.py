@@ -1,47 +1,21 @@
 #!/usr/bin/env python3
 """
-Discovered CoinGlass API Endpoints
+CoinGlass API 端点清单（完整测试版）。
 
-Source: Reverse-engineered from Next.js webpack bundles
-  - Main bundle: https://s3.coinglass.com/v1/cg/_next/static/chunks/pages/_app-f75bb33a408a04d3.js
-  - Webpack module 12471 contains AES-ECB encryption logic, FP/xW functions, interceptors
-  - Strings obfuscated via lookup table function Qt(offset, seed)
-
-Base URLs:
-  - https://capi.coinglass.com            (main API, encrypted + plain)
-  - https://fapi.coinglass.com            (secondary API, mostly plain)
-  - https://capi.coinglass.com/liquidity-heatmap  (liquidity heatmaps, plain)
-  - https://capi.coinglass.com/coin-community     (community features)
-  - https://fapi.coinglass.com/coin-community      (community features)
-
-APIs are called via one of these wrappers from module 12471:
-  - FP (exported as `FP`, function `ie`):   GET with encryption headers, decrypts response
-  - xW (exported as `xW`, function `ae`):   Non-encrypted request
-  - Zl (exported as `Zl`, function `se`):   POST with encryption headers
-
-Headers for encrypted requests (set by request interceptor):
-  - encryption: true
-  - cache-ts-v2: <timestamp>
-  - language: en (or user's language)
-  - obe: <value from params.obe>
-  - ua: <value from params.ua>
-  - User-Agent: Mozilla/5.0 ...
-  - Origin: https://www.coinglass.com
-  - Referer: https://www.coinglass.com/...
-
-Encrypted response headers:
-  - user: base64-encoded user token (decrypts to actual AES key)
-  - v: version indicator (55, 66, 77, or 1 for URL-based)
+分类:
+  - ENCRYPTED_ENDPOINTS_CAPI:  加密端点，实测可用（136 个）
+  - EMPTY_RESPONSE_ONLY:       端点存在但返回空 success（57 个）
+  - ENCRYPTED_ENDPOINTS_FULL:  完整 URL 列表（from webpack）（85 个）
+     实测结果：仅 1 个加密活跃 + 1 个加密有数据 + 3 个非加密，其余 80 个返回 404
+  - NON_ENCRYPTED_ENDPOINTS:   非加密端点（16 个）
+  - SPECIAL_ENDPOINTS:         特殊端点（2 个）
+  - DEAD_ENDPOINTS:            返回 404 的废弃端点（80 个）
 """
 
-# === ENCRYPTED ENDPOINTS (via FP wrapper) ===
-# These are called with encryption: true header and return encrypted responses.
-# Use fetch_and_decrypt() from decrypt.py.
-
+# === 实测可用的加密端点 (136) ===
 ENCRYPTED_ENDPOINTS_CAPI = {
-    # === SPOT ===
+    # SPOT
     "/api/spot/rsi/list": {"pageSize": 500, "pageNum": 1},
-    "/api/spot/coin/category": None,
     "/api/spot/coin/markets": {"symbol": "BTC"},
     "/api/spot/coin/info": {"symbol": "BTC"},
     "/api/spot/coin/symbol": {"symbol": "BTC"},
@@ -50,80 +24,62 @@ ENCRYPTED_ENDPOINTS_CAPI = {
     "/api/spot/support/coin": None,
     "/api/spot/margin/realCrossLendingRate": None,
     "/api/spot/marketCap/data": None,
-    "/api/spot/priceChange/history": {"symbol": "BTC"},
     "/api/spot/pricePerformance": {"symbol": "BTC"},
 
-    # === FUTURES ===
+    # FUTURES
     "/api/futures/liquidation/chart": {"symbol": "BTC", "interval": "1h"},
-    "/api/futures/liquidation/today": None,
-    "/api/futures/liquidation/order": {"symbol": "BTC"},
+    "/api/futures/liquidation/today": {"symbol": "BTC"},
     "/api/futures/liquidation/maxOrder": None,
-    "/api/futures/liquidation/count/heatmap": None,
     "/api/futures/liquidation/ex/info": None,
     "/api/futures/longShortRate": {"symbol": "BTC", "timeType": 1, "type": 0},
-    "/api/futures/longShortChart": {"symbol": "BTC"},
     "/api/futures/home/statistics": None,
-    "/api/futures/bigOrder": None,
-    "/api/futures/data/distribution": {"symbol": "BTC"},
-    "/api/futures/coins/heatmap": None,
+    "/api/futures/bigOrder": {"symbol": "BTC"},
+    "/api/futures/data/distribution": {"symbol": "BTCUSDT", "exName": "Binance"},
     "/api/futures/coins/priceChange": None,
-    "/api/futures/ticker": {"symbol": "BTC"},
     "/api/futures/v2/coins/markets": None,
     "/api/futures/v2/marginMarketCap": None,
     "/api/futures/vol/chart": {"symbol": "BTC", "type": 1, "timeType": 1},
     "/api/futures/select/coins/tickers": None,
-    "/api/futures/accountAndPosition": None,
     "/api/futures/accountAndPosition/list": None,
     "/api/futures/ocPcCompare": None,
-    "/api/futures/insuranceFundBalance/history": {"symbol": "BTC"},
     "/api/futures/market/category?full=true": None,
 
-    # === FUNDING RATE ===
+    # FUNDING RATE
     "/api/fundingRate/list": {"pageSize": 100, "pageNum": 1},
     "/api/fundingRate/rank": {"pageSize": 100},
     "/api/fundingRate/avg": None,
     "/api/fundingRate/flow": None,
-    "/api/fundingRate/heatmap": {"type": 1},
-    "/api/fundingRate/cumulative": None,
     "/api/fundingRate/coin/detail": {"symbol": "BTC"},
     "/api/fundingRate/arbitrage-list": None,
     "/api/fundingRate/interestArbitrageV2": None,
-    "/api/fundingRate/v2/history/chart": {"symbol": "BTC"},
     "/api/fundingRate/v2/home": None,
 
-    # === OPEN INTEREST ===
+    # OPEN INTEREST
     "/api/openInterest/statistics": None,
     "/api/openInterest/info": {"symbol": "BTC"},
-    "/api/openInterest/change": {"symbol": "BTC"},
     "/api/openInterest/oiVolRadio": {"symbol": "BTC"},
-    "/api/openInterest/v3/chart": {"symbol": "BTC", "interval": "1h"},
-    "/api/openInterest/ex/info": None,
 
-    # === OPTIONS ===
+    # OPTIONS
     "/api/option/statistics": None,
-    "/api/option/v2/chart": {"symbol": "BTC"},
-    "/api/option/oi/history": {"symbol": "BTC"},
     "/api/option/vol/history": {"symbol": "BTC"},
     "/api/option/top/oi": {"symbol": "BTC"},
     "/api/option/top/vol": {"symbol": "BTC"},
     "/api/option/strike_pain": {"symbol": "BTC"},
-    "/api/option/index/chart": {"symbol": "BTC"},
     "/api/option/netPremiumStrikeHeatmap": {"symbol": "BTC"},
 
-    # === VOLUME ===
+    # VOLUME
     "/api/vol/overview": None,
     "/api/vol/history": None,
-    "/api/vol/coin/top/overview": None,
     "/api/vol/coin/detail/overview": {"symbol": "BTC"},
 
-    # === MARKET CAP ===
+    # MARKET CAP
     "/api/marketCapRank": {"pageSize": 100},
     "/api/marketCapRank/history": {"symbol": "BTC"},
     "/api/marketCap/history": {"symbol": "BTC"},
     "/api/marketCap/stablecoin/history": {"symbol": "USDT"},
     "/api/marketCap/type/history": {"symbol": "BTC"},
 
-    # === INDICES (CGDI/CGRI etc.) ===
+    # INDICES
     "/api/index/cgdi": None,
     "/api/index/cgdi/performance": None,
     "/api/index/cgri": {"symbol": "BTC"},
@@ -132,7 +88,6 @@ ENCRYPTED_ENDPOINTS_CAPI = {
     "/api/index/macdList": None,
     "/api/index/rsiMap": {"symbol": "BTC"},
     "/api/index/history": None,
-    "/api/index/priceAndOiMap": {"symbol": "BTC"},
     "/api/index/bitcoinBubbleIndex": None,
     "/api/index/bitcoinProfitableDays": None,
     "/api/index/goldenRatioMultiplier": None,
@@ -143,107 +98,84 @@ ENCRYPTED_ENDPOINTS_CAPI = {
     "/api/index/towYearMAMultiplier": None,
     "/api/index/towHundredWeekMovingAvgHeatmap": None,
     "/api/index/volatilityHistory": {"symbol": "BTC"},
-    "/api/index/aggregate/liqHeatMap": None,
-    "/api/index/v2/liqHeatMap": {"symbol": "BTC"},
-    "/api/index/v3/aggregate/liqHeatMap": None,
-    "/api/index/v5/liqHeatMap": None,
-    "/api/index/2/exLiqMap": None,
-    "/api/index/5/liqMap": None,
 
-    # === ETF ===
+    # ETF
     "/api/etf/overview": None,
     "/api/etf/flow": None,
     "/api/etf/bito": None,
     "/api/etf/bito/history/chart": None,
     "/api/etf/history/chart?type=2": None,
 
-    # === DERIVATIVES ===
+    # DERIVATIVES
     "/api/derivative/exchange/list": None,
     "/api/derivative/exchange/info": {"exName": "Binance"},
-    "/api/derivative/exchange/heatmap": None,
     "/api/derivative/exchange/dex/list": None,
-    "/api/derivative/exchange/sta/history": {"exName": "Binance"},
-    "/api/derivative/exchange/futures/symbolRank": None,
-    "/api/derivative/exchange/pair-rank": None,
 
-    # === TRADING DATA ===
+    # TRADING DATA
     "/api/tradingData/accountList": None,
-    "/api/tradingData/accountLSRatio": {"symbol": "BTC"},
-    "/api/tradingData/positionLSRatio": {"symbol": "BTC"},
-    "/api/tradingData/bitfinex/chart": None,
     "/api/tradingData/bitfinex/symbols": None,
-    "/api/tradingData/whaleVsRetail": {"symbol": "BTC"},
     "/api/tradingData/sta?type=2": None,
 
-    # === HYPERLIQUID ===
+    # HYPERLIQUID
     "/api/hyperliquid/vaults": None,
     "/api/hyperliquid/topPosition": None,
     "/api/hyperliquid/topPosition/action": None,
-    "/api/hyperliquid/topPosition/actionHistory": None,
-    "/api/hyperliquid/topPosition/liqMap": None,
     "/api/hyperliquid/address/symbol/group": None,
     "/api/hyperliquid/position/user/count": None,
 
-    # === GRAYSCALE ===
+    # GRAYSCALE
     "/api/grayscaleOpenInterest": None,
     "/api/grayscaleOpenInterest/history": None,
     "/api/grayscale/shareholders": None,
     "/api/grayscale/eft/gbtc/history": None,
     "/api/grayscale/market/history": None,
 
-    # === MONEY FLOW ===
+    # MONEY FLOW
     "/api/moneyFlow/history": {"symbol": "BTC"},
 
-    # === LIQUIDATION LEVELS ===
-    "/api/liquidationLevels/v2": {"symbol": "BTC"},
-
-    # === BASIS ===
+    # BASIS
     "/api/basis/current/chart": {"symbol": "BTC"},
-    "/api/basis/v2/chart": {"symbol": "BTC"},
 
-    # === MACRO / ECONOMIC ===
+    # MACRO / ECONOMIC
     "/api/economic/calendar/data": None,
     "/api/economic/calendar/event": None,
     "/api/economic/calendar/activities": None,
 
-    # === MARKET ===
+    # MARKET
     "/api/marketHistory": None,
     "/api/marketVolatility": {"symbol": "BTC"},
-    "/api/priceAndIndicator": None,
     "/api/bitcoinTreasuries": None,
     "/api/bull_market_peak_indicator": None,
 
-    # === STOCK / TRADFI ===
+    # TRADFI
     "/api/tradfi/overview": None,
-    "/api/tradfi/market-list": None,
     "/api/tradfi/overall-distribution": None,
     "/api/tradfi/sector-statistics-list": None,
-    "/api/stock/list": {"pageSize": 20},
-    "/api/stock/v2/list": {"pageSize": 20},
+
+    # STOCK
+    "/api/stock/list": None,
+    "/api/stock/v2/list": {"type": 2},
     "/api/stock/all/list": None,
-    "/api/stock/detail": {"symbol": "AAPL"},
-    "/api/stock/history": {"symbol": "AAPL"},
-    "/api/stock/news": None,
     "/api/stock/market/history/all": None,
 
-    # === COINS ===
+    # COINS
     "/api/coin/search": {"keyword": "BTC"},
-    "/api/coin/tickers": {"pageSize": 100},
-    "/api/coin/market": None,
-    "/api/coin/all_history": None,
     "/api/coin/liquidation": {"symbol": "BTC"},
-    "/api/coin/liq/heatmap": None,
     "/api/coin/hot/exs": None,
     "/api/coin/unlock/list": None,
-    "/api/coin/unlock/detail": {"symbol": "BTC"},
 
-    # === SELECT ===
+    # SELECT
     "/api/select/coins/tickers": None,
     "/api/support/symbol": None,
     "/api/v2/support/symbol": None,
-    "/api/ticker": None,
 
-    # === ESCAPE INDICES ===
+    # HOME
+    "/api/home/v2/coinMarkets": {"sort": "rsi4h", "order": "desc", "pageNum": 1, "pageSize": 5, "ex": "all"},
+    "/api/home/card": None,
+    "/api/home/card2": None,
+    "/api/home/card4": None,
+
+    # ESCAPE INDICES
     "/api/escape/index/altCoinSeason": None,
     "/api/escape/index/bitcoinDominance": None,
     "/api/escape/index/longTermHolderSupply": None,
@@ -257,271 +189,238 @@ ENCRYPTED_ENDPOINTS_CAPI = {
     "/api/escape/index/mayerMultiple": None,
     "/api/escape/index/aHR999Escape": None,
 
-    # === OTHERS ===
+    # OTHER (plain, return real data)
     "/api/ip/country": None,
-    "/api/cexs": None,
-    "/api/ls/card": None,
     "/api/ls/sentiment": None,
     "/api/utxo/list": None,
     "/api/marv/z-score/list": None,
     "/api/itbit/vol/chart": None,
     "/api/book/funding_k": None,
-    "/api/sys/goto": None,
-    "/api/v2/kline": None,
     "/api/price": {"symbol": "BTC", "interval": "1d"},
-
-    # === ARTICLES / STRAPI ===
-    "/api/articles": None,
-    "/api/articles/related/": None,
-    "/api/strapi/page": None,
-    "/api/strapi/wiki_category_list": None,
 }
 
-# === ENCRYPTED ENDPOINTS (full URLs) ===
-# These use the full https:// URL rather than relative path
-ENCRYPTED_ENDPOINTS_FULL = [
-    # --- capi.coinglass.com ---
-    "https://capi.coinglass.com/api/block/transaction/analytics",
-    "https://capi.coinglass.com/api/block/transaction/find",
-    "https://capi.coinglass.com/api/block/transaction/history",
-    "https://capi.coinglass.com/api/block/transaction/stat",
-    "https://capi.coinglass.com/api/btcCompare/etfStrategy",
-    "https://capi.coinglass.com/api/btcCompare/exchangeEtf",
-    "https://capi.coinglass.com/api/btcCompare/exchangeStrategy",
-    "https://capi.coinglass.com/api/etf/eth/flow",
-    "https://capi.coinglass.com/api/etf/flow",
-    "https://capi.coinglass.com/api/etf/hk/flow",
-    "https://capi.coinglass.com/api/etf/hype/flow",
-    "https://capi.coinglass.com/api/etf/sol/flow",
-    "https://capi.coinglass.com/api/etf/xrp/flow",
-    "https://capi.coinglass.com/api/futures/data/distribution/2",
-    "https://capi.coinglass.com/api/futures/flow/category",
-    "https://capi.coinglass.com/api/futures/flow/table",
-    "https://capi.coinglass.com/api/futures/select/coins/tickers",
-    "https://capi.coinglass.com/api/futures/top/coins/tickers",
-    "https://capi.coinglass.com/api/grayscale/eft/gbtc",
-    "https://capi.coinglass.com/api/home/category",
-    "https://capi.coinglass.com/api/home/coinMarkets",
-    "https://capi.coinglass.com/api/home/v2/coinMarkets",
-    "https://capi.coinglass.com/api/index/optionVsFuturesByOi",
-    "https://capi.coinglass.com/api/kline",
-    "https://capi.coinglass.com/api/largeOrder",
-    "https://capi.coinglass.com/api/largeOrder/statistics",
-    "https://capi.coinglass.com/api/largeTakerOrder",
-    "https://capi.coinglass.com/api/largeTakerOrder/revoke",
-    "https://capi.coinglass.com/api/largeTakerOrder/statistics",
-    "https://capi.coinglass.com/api/openInterest/v3/ETH-BTC/chart",
-    "https://capi.coinglass.com/api/orderFlow",
-    "https://capi.coinglass.com/api/price",
-    "https://capi.coinglass.com/api/spot/coin/info",
-    "https://capi.coinglass.com/api/spot/coin/markets",
-    "https://capi.coinglass.com/api/spot/coin/outIn",
-    "https://capi.coinglass.com/api/spot/coin/symbol",
-    "https://capi.coinglass.com/api/spot/outIn/category",
-    "https://capi.coinglass.com/api/spot/support/coin",
-    "https://capi.coinglass.com/api/stock/asset/history/change",
-    "https://capi.coinglass.com/api/stock/eth/list",
-    "https://capi.coinglass.com/api/stock/eth/spot/inFlow",
-    "https://capi.coinglass.com/api/stock/history/premium",
-    "https://capi.coinglass.com/api/stock/history/premium/spot",
-    "https://capi.coinglass.com/api/stock/hype/list",
-    "https://capi.coinglass.com/api/stock/hype/spot/inFlow",
-    "https://capi.coinglass.com/api/stock/sol/list",
-    "https://capi.coinglass.com/api/stock/sol/spot/inFlow",
-    "https://capi.coinglass.com/api/stock/spot/inFlow",
-    "https://capi.coinglass.com/api/stock/xrp/list",
-    "https://capi.coinglass.com/api/stock/xrp/spot/inFlow",
-    "https://capi.coinglass.com/api/strapi/home_list_v2",
-    "https://capi.coinglass.com/api/strapi/wiki_category",
-    "https://capi.coinglass.com/api/strapi/wiki_related",
-    "https://capi.coinglass.com/api/strapi/wiki_search",
-    "https://capi.coinglass.com/api/treasury/eth/company/Detail",
-    "https://capi.coinglass.com/api/treasury/eth/company/list",
-    "https://capi.coinglass.com/api/treasury/eth/history",
-    "https://capi.coinglass.com/api/treasury/eth/purchases/list",
-    "https://capi.coinglass.com/api/treasury/eth/top",
-    "https://capi.coinglass.com/api/treasury/eth/top_v2",
-    "https://capi.coinglass.com/api/v2/kline",
-    "https://capi.coinglass.com/coin-community/api/user/contract/ticker/collect/list",
+# === 端点存在但返回空 success (57) ===
+# 这些端点无崩溃，但返回 {"code":"0","msg":"success","success":true} 无数据。
+# 可能需要额外参数或浏览器会话认证。
+EMPTY_RESPONSE_ONLY = [
+    "/api/spot/coin/category",
+    "/api/spot/priceChange/history",
+    "/api/futures/liquidation/order",
+    "/api/futures/liquidation/count/heatmap",
+    "/api/futures/longShortChart",
+    "/api/futures/coins/heatmap",
+    "/api/futures/ticker",
+    "/api/futures/accountAndPosition",
+    "/api/futures/insuranceFundBalance/history",
+    "/api/fundingRate/heatmap",
+    "/api/fundingRate/cumulative",
+    "/api/fundingRate/v2/history/chart",
+    "/api/openInterest/change",
+    "/api/openInterest/v3/chart",
+    "/api/openInterest/ex/info",
+    "/api/option/v2/chart",
+    "/api/option/oi/history",
+    "/api/option/index/chart",
+    "/api/vol/coin/top/overview",
+    "/api/index/priceAndOiMap",
+    "/api/index/aggregate/liqHeatMap",
+    "/api/index/v2/liqHeatMap",
+    "/api/index/v3/aggregate/liqHeatMap",
+    "/api/index/v5/liqHeatMap",
+    "/api/index/2/exLiqMap",
+    "/api/index/5/liqMap",
+    "/api/derivative/exchange/heatmap",
+    "/api/derivative/exchange/sta/history",
+    "/api/derivative/exchange/futures/symbolRank",
+    "/api/derivative/exchange/pair-rank",
+    "/api/tradingData/accountLSRatio",
+    "/api/tradingData/positionLSRatio",
+    "/api/tradingData/bitfinex/chart",
+    "/api/tradingData/whaleVsRetail",
+    "/api/hyperliquid/topPosition/actionHistory",
+    "/api/hyperliquid/topPosition/liqMap",
+    "/api/liquidationLevels/v2",
+    "/api/basis/v2/chart",
+    "/api/priceAndIndicator",
+    "/api/tradfi/market-list",
+    "/api/stock/detail",
+    "/api/stock/history",
+    "/api/stock/news",
+    "/api/coin/tickers",
+    "/api/coin/market",
+    "/api/coin/all_history",
+    "/api/coin/liq/heatmap",
+    "/api/coin/unlock/detail",
+    "/api/ticker",
+    "/api/cexs",
+    "/api/ls/card",
+    "/api/sys/goto",
+    "/api/v2/kline",
+    "/api/articles",
+    "/api/articles/related/",
+    "/api/strapi/page",
+    "/api/strapi/wiki_category_list",
+]
 
-    # --- fapi.coinglass.com ---
-    "https://fapi.coinglass.com/api/calendar/liquidation/event",
-    "https://fapi.coinglass.com/api/coin/history",
-    "https://fapi.coinglass.com/api/coin/performance",
-    "https://fapi.coinglass.com/api/coin/profile",
-    "https://fapi.coinglass.com/api/coin/related",
-    "https://fapi.coinglass.com/api/coin/v2/info",
-    "https://fapi.coinglass.com/api/coin/vol/heatmap",
-    "https://fapi.coinglass.com/api/earn/flexible",
-    "https://fapi.coinglass.com/api/escape/index/microStrategyCostV2",
-    "https://fapi.coinglass.com/api/flippening",
-    "https://fapi.coinglass.com/api/flippening/details",
-    "https://fapi.coinglass.com/api/flippening/list",
-    "https://fapi.coinglass.com/api/flippening/statInfo",
-    "https://fapi.coinglass.com/api/hyperliquid/address/group/count",
-    "https://fapi.coinglass.com/api/hyperliquid/address/group/margin",
-    "https://fapi.coinglass.com/api/hyperliquid/address/group/pnl",
-    "https://fapi.coinglass.com/api/hyperliquid/address/largest/positions",
-    "https://fapi.coinglass.com/api/hyperliquid/address/liquidation/risk",
-    "https://fapi.coinglass.com/api/hyperliquid/address/openPerp/top",
-    "https://fapi.coinglass.com/api/hyperliquid/address/user/List",
-    "https://fapi.coinglass.com/api/hyperliquid/position/symbol/shortAndLong",
-    "https://fapi.coinglass.com/api/index/bitcoinActiveAddresses",
-    "https://fapi.coinglass.com/api/index/bitcoinNewAddresses",
-    "https://fapi.coinglass.com/api/index/bitcoinPowerLaw",
-    "https://fapi.coinglass.com/api/index/federalFundsRate",
-    "https://fapi.coinglass.com/api/index/globalM2SupplyGrowth",
-    "https://fapi.coinglass.com/api/index/terminalPrice",
-    "https://fapi.coinglass.com/api/index/uSM2SupplyGrowth",
-    "https://fapi.coinglass.com/api/index/v4/aggregate/liqHeatMap",
-    "https://fapi.coinglass.com/api/index/v6/liqHeatMap",
-    "https://fapi.coinglass.com/api/index/volatilityList",
-    "https://fapi.coinglass.com/api/liqHeatMap/list",
-    "https://fapi.coinglass.com/api/metrics/balanceGt0P01",
-    "https://fapi.coinglass.com/api/metrics/balanceGt0P1",
-    "https://fapi.coinglass.com/api/metrics/balanceGt1",
-    "https://fapi.coinglass.com/api/metrics/balanceGt10",
-    "https://fapi.coinglass.com/api/metrics/balanceGt100",
-    "https://fapi.coinglass.com/api/metrics/balanceGt100k",
-    "https://fapi.coinglass.com/api/metrics/balanceGt10k",
-    "https://fapi.coinglass.com/api/metrics/balanceGt1k",
-    "https://fapi.coinglass.com/api/metrics/between0P1And1",
-    "https://fapi.coinglass.com/api/metrics/between100And1k",
-    "https://fapi.coinglass.com/api/metrics/between10And100",
-    "https://fapi.coinglass.com/api/metrics/between10kAnd100k",
-    "https://fapi.coinglass.com/api/metrics/between1And10",
-    "https://fapi.coinglass.com/api/metrics/between1kAnd10k",
-    "https://fapi.coinglass.com/api/metrics/bitcoinBalancedPrice",
-    "https://fapi.coinglass.com/api/metrics/bitcoinCDD",
-    "https://fapi.coinglass.com/api/metrics/bitcoinCVDD",
-    "https://fapi.coinglass.com/api/metrics/bitcoinCorrelation",
-    "https://fapi.coinglass.com/api/metrics/bitcoinDeltaTop",
-    "https://fapi.coinglass.com/api/metrics/bitcoinHashPriceIndex",
-    "https://fapi.coinglass.com/api/metrics/bitcoinHashRate",
-    "https://fapi.coinglass.com/api/metrics/bitcoinHashRibbons",
-    "https://fapi.coinglass.com/api/metrics/bitcoinLTHMVRV",
-    "https://fapi.coinglass.com/api/metrics/bitcoinLTHRealizedPrice",
-    "https://fapi.coinglass.com/api/metrics/bitcoinLTHSOPR",
-    "https://fapi.coinglass.com/api/metrics/bitcoinLiveliness",
-    "https://fapi.coinglass.com/api/metrics/bitcoinNRPL",
-    "https://fapi.coinglass.com/api/metrics/bitcoinNetworkBlocks",
-    "https://fapi.coinglass.com/api/metrics/bitcoinSOPR",
-    "https://fapi.coinglass.com/api/metrics/bitcoinSTHMVRV",
-    "https://fapi.coinglass.com/api/metrics/bitcoinSTHRealizedPrice",
-    "https://fapi.coinglass.com/api/metrics/bitcoinSTHSOPR",
-    "https://fapi.coinglass.com/api/metrics/bitcoinSTHSupplyChange",
-    "https://fapi.coinglass.com/api/metrics/bitcoinThermocap",
-    "https://fapi.coinglass.com/api/metrics/bitcoinTopCap",
-    "https://fapi.coinglass.com/api/metrics/bitcoinVDDMultiple",
-    "https://fapi.coinglass.com/api/metrics/bitcoinWhaleShadows",
-    "https://fapi.coinglass.com/api/metrics/blockHeight",
-    "https://fapi.coinglass.com/api/metrics/blockRewardPerDay",
-    "https://fapi.coinglass.com/api/metrics/blockSpeedTime",
-    "https://fapi.coinglass.com/api/metrics/blockWeight",
-    "https://fapi.coinglass.com/api/metrics/btcFeesDay",
-    "https://fapi.coinglass.com/api/metrics/btcGoldCorrelation",
-    "https://fapi.coinglass.com/api/metrics/btcLTHSupplyChange",
-    "https://fapi.coinglass.com/api/metrics/btcMinerOutflows",
-    "https://fapi.coinglass.com/api/metrics/btcSupplyInLoss",
-    "https://fapi.coinglass.com/api/metrics/btcSupplyInProfit",
-    "https://fapi.coinglass.com/api/metrics/btcUsEquitiesCorrelation",
-    "https://fapi.coinglass.com/api/metrics/circulatingSupply",
-    "https://fapi.coinglass.com/api/metrics/countryDistributionNode",
-    "https://fapi.coinglass.com/api/metrics/cryptocurrencyLegality",
-    "https://fapi.coinglass.com/api/metrics/dailyMinerRevenue",
-    "https://fapi.coinglass.com/api/metrics/exBTCDailyMarketShare",
-    "https://fapi.coinglass.com/api/metrics/exBTCDailyTotalTradingVol",
-    "https://fapi.coinglass.com/api/metrics/exBTCDailyTradingVol",
-    "https://fapi.coinglass.com/api/metrics/exBTCMonthlyTradingVol",
-    "https://fapi.coinglass.com/api/metrics/exBTCVolumeDominance",
-    "https://fapi.coinglass.com/api/metrics/exDailyMarketShare",
-    "https://fapi.coinglass.com/api/metrics/exDailyTradingVol",
-    "https://fapi.coinglass.com/api/metrics/exMonthlyTradingVol",
-    "https://fapi.coinglass.com/api/metrics/futureBTCTrend",
-    "https://fapi.coinglass.com/api/metrics/futuresTradingVolume",
-    "https://fapi.coinglass.com/api/metrics/googleTrends",
-    "https://fapi.coinglass.com/api/metrics/governmentTreasuries",
-    "https://fapi.coinglass.com/api/metrics/gtFiveYearHODLWave",
-    "https://fapi.coinglass.com/api/metrics/gtOneYearHODLWave",
-    "https://fapi.coinglass.com/api/metrics/gtTenYearHODLWave",
-    "https://fapi.coinglass.com/api/metrics/holdingGtXByYear",
-    "https://fapi.coinglass.com/api/metrics/latestBlocksMined",
-    "https://fapi.coinglass.com/api/metrics/monthlyMinerRevenue",
-    "https://fapi.coinglass.com/api/metrics/nodesByASN",
-    "https://fapi.coinglass.com/api/metrics/nonZeroBalance",
-    "https://fapi.coinglass.com/api/metrics/numberUtxosInLoss",
-    "https://fapi.coinglass.com/api/metrics/numberUtxosInProfit",
-    "https://fapi.coinglass.com/api/metrics/outputPerDay",
-    "https://fapi.coinglass.com/api/metrics/outputPerTx",
-    "https://fapi.coinglass.com/api/metrics/outputVolPerDay",
-    "https://fapi.coinglass.com/api/metrics/outputVolPerTx",
-    "https://fapi.coinglass.com/api/metrics/percentAddressesInLoss",
-    "https://fapi.coinglass.com/api/metrics/percentAddressesInProfit",
-    "https://fapi.coinglass.com/api/metrics/percentUtxosInProfit",
-    "https://fapi.coinglass.com/api/metrics/piCycleTopPrediction",
-    "https://fapi.coinglass.com/api/metrics/predictions",
-    "https://fapi.coinglass.com/api/metrics/priceDrawDownFromATH",
-    "https://fapi.coinglass.com/api/metrics/priceForecastTools",
-    "https://fapi.coinglass.com/api/metrics/pricePerfSinceHalving",
-    "https://fapi.coinglass.com/api/metrics/realizedCapHODLWaves",
-    "https://fapi.coinglass.com/api/metrics/redditSubscribers",
-    "https://fapi.coinglass.com/api/metrics/spot2FuturesTradingVolume",
-    "https://fapi.coinglass.com/api/metrics/spotETFDailyAUM",
-    "https://fapi.coinglass.com/api/metrics/spotETFMarketShare",
-    "https://fapi.coinglass.com/api/metrics/spotETFNetFlows",
-    "https://fapi.coinglass.com/api/metrics/spotETFNetFlowsUsd",
-    "https://fapi.coinglass.com/api/metrics/spotETFTradingVolume",
-    "https://fapi.coinglass.com/api/metrics/spotTotalETFNetFlows",
-    "https://fapi.coinglass.com/api/metrics/treasuries",
-    "https://fapi.coinglass.com/api/metrics/usOffshoreTradingVolume",
-    "https://fapi.coinglass.com/api/metrics/wbtcBalance",
-    "https://fapi.coinglass.com/api/metrics/weeklyPricePerf",
-    "https://fapi.coinglass.com/api/metrics/wikiPageViews",
-    "https://fapi.coinglass.com/api/metrics/yearlyCandles",
-    "https://fapi.coinglass.com/api/metrics/yearlyPricePerf",
-    "https://fapi.coinglass.com/api/moneyFlow/coin",
-    "https://fapi.coinglass.com/api/sys/api/config",
-    "https://fapi.coinglass.com/api/treasury/BTCNetFlowWeekly",
-    "https://fapi.coinglass.com/api/treasury/balanceSheetHistory",
-    "https://fapi.coinglass.com/api/treasury/balanceSheetHistoryV2",
-    "https://fapi.coinglass.com/api/treasury/btcStock",
-    "https://fapi.coinglass.com/api/treasury/publicCompanies?top=60",
-    "https://fapi.coinglass.com/api/treasury/similarCompanies",
-    "https://fapi.coinglass.com/api/treasury/statInfo",
-    "https://fapi.coinglass.com/api/treasury/stockDetails",
-    "https://fapi.coinglass.com/api/treasury/totalHistory",
-    "https://fapi.coinglass.com/api/v2/kline",
+# === ENCRYPTED ENDPOINTS (full URLs, from webpack) ===
+# 实测结果 (2025+):
+#   ✅ 活跃加密: /api/block/transaction/analytics, /fapi/api/treasury/totalHistory
+#   ✅ 非加密:   /fapi/api/treasury/stockDetails, /fapi/api/v2/kline, /fapi/coin-community/...
+#   ❌ 已废弃:  其余 80 个均返回 404（block chain, mining, defi, overview 系列）
+#
+# 说明: CoinGlass 已将 on-chain 数据分析功能迁移或下线，
+#       旧的 /api/block/, /api/block/mining/, /api/block/defi/ 等路由不再可用。
+#
+# 注意: /api/block/transaction/analytics 返回 NoneType data（可能需额外参数），
+#       /fapi/api/treasury/totalHistory 可用，v=1 加密。
+ENCRYPTED_ENDPOINTS_FULL = [
+    # 活跃加密端点
+    {"url": "https://capi.coinglass.com/api/block/transaction/analytics",
+     "status": "encrypted_working", "params": {"symbol": "BTC"},
+     "note": "返回 NoneType data，可能需要在页面上下文中调用"},
+    {"url": "https://fapi.coinglass.com/api/treasury/totalHistory",
+     "status": "encrypted_working", "params": None,
+     "note": "v=1 加密，返回 list[3103] treasury 历史数据"},
+    # 非加密但仍活跃
+    {"url": "https://fapi.coinglass.com/api/treasury/stockDetails",
+     "status": "non_encrypted", "params": None},
+    {"url": "https://fapi.coinglass.com/api/v2/kline",
+     "status": "non_encrypted", "params": {"symbol": "BTC", "interval": "1h", "limit": 100},
+     "note": "返回 success 但无 data→kline 需交易对参数"},
+]
+
+# === 已废弃的 /api/block/* 端点（全部返回 404） ===
+# CoinGlass 已移除以下 on-chain / block / mining / defi / overview 路由。
+# 保留在此以便参考，不再遍历测试。
+DEAD_ENDPOINTS = [
+    # /api/block/transaction/*
+    "https://capi.coinglass.com/api/block/transaction/analytics/history",
+    "https://capi.coinglass.com/api/block/transaction/chart",
+    "https://capi.coinglass.com/api/block/transaction/overview",
+    "https://capi.coinglass.com/api/block/transaction/list",
+    # /api/block/adress/analytics (typo preserved from webpack)
+    "https://capi.coinglass.com/api/block/adress/analytics",
+    # /api/block/address/*
+    "https://capi.coinglass.com/api/block/address/active/list",
+    "https://capi.coinglass.com/api/block/address/new/list",
+    "https://capi.coinglass.com/api/block/address/balance/list",
+    "https://capi.coinglass.com/api/block/address/active/top",
+    "https://capi.coinglass.com/api/block/address/topHolder",
+    "https://capi.coinglass.com/api/block/address/accumulation",
+    "https://capi.coinglass.com/api/block/address/balance",
+    "https://capi.coinglass.com/api/block/address/topHolder/balance",
+    "https://capi.coinglass.com/api/block/address/whale/netflow",
+    "https://capi.coinglass.com/api/block/address/exchange/netflow",
+    "https://capi.coinglass.com/api/block/address/topHolder/details",
+    "https://capi.coinglass.com/api/block/address/topHolder/change",
+    # /api/block/mining/*
+    "https://capi.coinglass.com/api/block/mining/hashRate",
+    "https://capi.coinglass.com/api/block/mining/difficulty",
+    "https://capi.coinglass.com/api/block/mining/hashPrice",
+    "https://capi.coinglass.com/api/block/mining/hashRate/distribution",
+    "https://capi.coinglass.com/api/block/mining/pool/hashRate/list",
+    "https://capi.coinglass.com/api/block/mining/miner/flow",
+    "https://capi.coinglass.com/api/block/mining/miner/position",
+    "https://capi.coinglass.com/api/block/mining/txFee",
+    "https://capi.coinglass.com/api/block/mining/txFee/chart",
+    "https://capi.coinglass.com/api/block/mining/txFee/eth",
+    "https://capi.coinglass.com/api/block/mining/uncleRate",
+    "https://capi.coinglass.com/api/block/mining/minerRevenue",
+    "https://capi.coinglass.com/api/block/mining/costAvg",
+    "https://capi.coinglass.com/api/block/mining/costAvg/chart",
+    "https://capi.coinglass.com/api/block/mining/tokenUnlock",
+    "https://capi.coinglass.com/api/block/mining/cds",
+    "https://capi.coinglass.com/api/block/mining/cds/chart",
+    "https://capi.coinglass.com/api/block/mining/energyConsumption",
+    # /api/block/stableCoin/*
+    "https://capi.coinglass.com/api/block/stableCoin/overview",
+    "https://capi.coinglass.com/api/block/stableCoin/marketCap",
+    "https://capi.coinglass.com/api/block/stableCoin/supply",
+    "https://capi.coinglass.com/api/block/stableCoin/volume",
+    "https://capi.coinglass.com/api/block/stableCoin/transferVolume",
+    "https://capi.coinglass.com/api/block/stableCoin/transferCount",
+    "https://capi.coinglass.com/api/block/stableCoin/addressCount",
+    "https://capi.coinglass.com/api/block/stableCoin/velocity",
+    "https://capi.coinglass.com/api/block/stableCoin/reserve",
+    "https://capi.coinglass.com/api/block/stableCoin/flow",
+    "https://capi.coinglass.com/api/block/stableCoin/liquidity",
+    "https://capi.coinglass.com/api/block/stableCoin/stableCoinList",
+    "https://capi.coinglass.com/api/block/stableCoin/ratio/history",
+    # /api/block/derivative/*
+    "https://capi.coinglass.com/api/block/derivative/overview",
+    "https://capi.coinglass.com/api/block/derivative/oiCap",
+    "https://capi.coinglass.com/api/block/derivative/oiChart",
+    "https://capi.coinglass.com/api/block/derivative/liquidation/list",
+    "https://capi.coinglass.com/api/block/derivative/liquidation/chart",
+    "https://capi.coinglass.com/api/block/derivative/liquidation/count",
+    "https://capi.coinglass.com/api/block/derivative/volumeChart",
+    "https://capi.coinglass.com/api/block/derivative/rateChart",
+    "https://capi.coinglass.com/api/block/derivative/longShortChart",
+    "https://capi.coinglass.com/api/block/derivative/liquidation/exchange",
+    # /api/block/defi/*
+    "https://capi.coinglass.com/api/block/defi/overview",
+    "https://capi.coinglass.com/api/block/defi/marketCapChart",
+    "https://capi.coinglass.com/api/block/defi/tvlChart",
+    "https://capi.coinglass.com/api/block/defi/volumeChart",
+    "https://capi.coinglass.com/api/block/defi/dexVolumeChart",
+    "https://capi.coinglass.com/api/block/defi/dexVolumeRateChart",
+    "https://capi.coinglass.com/api/block/defi/lending",
+    "https://capi.coinglass.com/api/block/defi/tvl/list",
+    "https://capi.coinglass.com/api/block/defi/tvl/chain",
+    # /api/block/publicChart
+    "https://capi.coinglass.com/api/block/publicChart/history",
+    # /api/block/overview/*
+    "https://capi.coinglass.com/api/block/overview/compare",
+    "https://capi.coinglass.com/api/block/overview/active",
+    "https://capi.coinglass.com/api/block/overview/transaction",
+    "https://capi.coinglass.com/api/block/overview/volume",
+    "https://capi.coinglass.com/api/block/overview/volumeChart",
+    "https://capi.coinglass.com/api/block/overview/fee",
+    "https://capi.coinglass.com/api/block/overview/defi",
+    "https://capi.coinglass.com/api/block/overview/stableCoin",
+    "https://capi.coinglass.com/api/block/overview/derivative",
+    "https://capi.coinglass.com/api/block/overview/coin",
+    # /api/overview
+    "https://capi.coinglass.com/api/overview/list",
+    # fapi 废弃
+    "https://fapi.coinglass.com/api/treasury/overview",
     "https://fapi.coinglass.com/coin-community/api/user/collect/hy/list",
 ]
 
-# === NON-ENCRYPTED ENDPOINTS (via xW wrapper) ===
-# These are called without encryption headers, plain HTTP.
-NON_ENCRYPTED_ENDPOINTS = [
-    # === ALARM (coin-community) ===
-    "/coin-community/api/alarm/create",
-    "/coin-community/api/alarm/delete",
-    "/coin-community/api/alarm/list",
-    "/coin-community/api/alarm/msg",
-    "/coin-community/api/alarm/update",
-    "/coin-community/api/alarm/update/status",
+# === NON-ENCRYPTED ENDPOINTS ===
+NON_ENCRYPTED_ENDPOINTS = {
+    "plain_working": {
+        "/api/support/symbol": {"desc": "支持的交易对列表（明文）", "params": None},
+        "/api/v2/support/symbol": {"desc": "v2 支持的交易对（实测是加密的，v=1）", "params": None},
+    },
+    "xW_wrapper": [
+        "/coin-community/api/alarm/create",
+        "/coin-community/api/alarm/delete",
+        "/coin-community/api/alarm/list",
+        "/coin-community/api/alarm/msg",
+        "/coin-community/api/alarm/update",
+        "/coin-community/api/alarm/update/status",
+        "/coin-community/api/user/collect/filter/delete",
+        "/coin-community/api/user/collect/filter/save",
+        "/coin-community/api/user/collect/list?type=11",
+        "/coin-community/api/user/billAddress/find",
+        "/coin-community/api/user/billAddress/save",
+    ],
+    "full_urls": [
+        "https://capi.coinglass.com/coin-community/api/user/contract/symbol/collect",
+        "https://fapi.coinglass.com/coin-community/api/user/collect/update/hy/remark",
+        "https://fapi.coinglass.com/coin-community/api/user/contract/symbol/collect",
+    ],
+}
 
-    # === USER COLLECTIONS (coin-community) ===
-    "/coin-community/api/user/collect/filter/delete",
-    "/coin-community/api/user/collect/filter/save",
-    "/coin-community/api/user/collect/list?type=11",
-    "/coin-community/api/user/billAddress/find",
-    "/coin-community/api/user/billAddress/save",
+NON_ENCRYPTED_ENDPOINTS_FLAT = []
+for group in NON_ENCRYPTED_ENDPOINTS.values():
+    if isinstance(group, dict):
+        NON_ENCRYPTED_ENDPOINTS_FLAT.extend(group.keys())
+    elif isinstance(group, list):
+        NON_ENCRYPTED_ENDPOINTS_FLAT.extend(group)
 
-    # === LS SENTIMENT (both FP and xW registered) ===
-    "/api/ls/sentiment",
-
-    # === FULL URLS (non-encrypted) ===
-    "https://capi.coinglass.com/coin-community/api/user/contract/symbol/collect",
-    "https://fapi.coinglass.com/coin-community/api/user/collect/update/hy/remark",
-    "https://fapi.coinglass.com/coin-community/api/user/contract/symbol/collect",
-]
-
-# === SPECIAL ENDPOINTS (liquidity heatmap, non-encrypted) ===
+# === SPECIAL ENDPOINTS ===
 SPECIAL_ENDPOINTS = {
     "liquidity_heatmap_v3": {
         "url": "https://capi.coinglass.com/liquidity-heatmap/api/liquidity/v3/heatmap",
@@ -536,47 +435,18 @@ SPECIAL_ENDPOINTS = {
     },
 }
 
-# === ADDITIONAL ENDPOINTS (from bundle but not categorized into FP/xW) ===
-ADDITIONAL_ENDPOINTS = {
-    # BRC20 tokens
-    "brc20": [
-        "/api/brc20/detail", "/api/brc20/gasFee", "/api/brc20/holders",
-        "/api/brc20/list", "/api/brc20/ohlc", "/api/brc20/tickers", "/api/brc20/transfer",
-    ],
-    # ARC20 tokens
-    "arc20": [
-        "/api/arc20/detail", "/api/arc20/holders", "/api/arc20/list",
-        "/api/arc20/market", "/api/arc20/price", "/api/arc20/transfer",
-    ],
-    # CME
-    "cme": [
-        "/api/cme/cot/report", "/api/cme/cot/report/history",
-    ],
-    # Exchange assets
-    "exchange_assets": [
-        "/api/exchangeAssets/data", "/api/exchangeAssets/list",
-        "/api/exchange/chain/v3/balance", "/api/exchange/chain/v3/balance/list",
-        "/api/exchange/futures/supportCoin", "/api/exchange/futures/transactionCount",
-    ],
-    # BitMEX
-    "bitmex": [
-        "/api/bitmex/BTC/price", "/api/bitmex/leaderboard",
-        "/api/bitmex/leaderboard/userHistory", "/api/bitmex/position",
-    ],
-    # Home
-    "home": [
-        "/api/home/card", "/api/home/card2", "/api/home/card4",
-        "/api/home/coinMarkets",
-    ],
-    # Others
-    "other": [
-        "/api/bl/", "/api/sys/goto",
-    ],
-}
-
 if __name__ == "__main__":
-    print(f"ENCRYPTED (capi relative): {len(ENCRYPTED_ENDPOINTS_CAPI)}")
-    print(f"ENCRYPTED (full URLs):     {len(ENCRYPTED_ENDPOINTS_FULL)}")
-    print(f"NON-ENCRYPTED:            {len(NON_ENCRYPTED_ENDPOINTS)}")
-    print(f"SPECIAL:                   {len(SPECIAL_ENDPOINTS)}")
-    print(f"TOTAL: ~{len(ENCRYPTED_ENDPOINTS_CAPI) + len(ENCRYPTED_ENDPOINTS_FULL) + len(NON_ENCRYPTED_ENDPOINTS) + len(SPECIAL_ENDPOINTS)}")
+    total_enc = len(ENCRYPTED_ENDPOINTS_CAPI)
+    total_full_alive = sum(1 for e in ENCRYPTED_ENDPOINTS_FULL
+                           if isinstance(e, dict) and e.get("status") in ("encrypted_working", "non_encrypted"))
+    total_dead = len(DEAD_ENDPOINTS)
+    total_empty = len(EMPTY_RESPONSE_ONLY)
+    total_non = len(NON_ENCRYPTED_ENDPOINTS_FLAT)
+    total_special = len(SPECIAL_ENDPOINTS)
+    print(f"ENCRYPTED (实测可用):                    {total_enc}")
+    print(f"ENCRYPTED (webpack 完整 URL，活跃):      {total_full_alive}")
+    print(f"ENCRYPTED (webpack 完整 URL，已废弃):    {total_dead}")
+    print(f"EMPTY_RESPONSE (存在但无数据):           {total_empty}")
+    print(f"NON-ENCRYPTED:                           {total_non}")
+    print(f"SPECIAL:                                 {total_special}")
+    print(f"TOTAL (活跃端点):                       ~{total_enc + total_full_alive + total_empty + total_non + total_special}")

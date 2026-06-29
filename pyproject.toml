@@ -3,9 +3,12 @@ name = "coinglass-decrypt"
 version = "1.0.0"
 description = "Pure Python decryption of CoinGlass API responses. No API key, no browser required."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = ["requests", "pycryptodome"]
+
+[tool.setuptools]
+py-modules = ["decrypt", "discovered_endpoints", "example"]
 
 [build-system]
 requires = ["setuptools"]
