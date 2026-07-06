@@ -50,15 +50,17 @@ def _derive_key0(v: str, url: str = "") -> str:
     All current CoinGlass endpoints (100% as of 2025+) return v=1:
       Key0 = base64(url_path)[:16]
 
+    Newer v values (0, 2, ...) also use url-path derivation — treat any
+    non-legacy v as url-path based.
+
     Legacy v=55/66/77 (no longer in use):
       Key0 = base64(constant_from_table)[:16]
     """
-    if v == "1":
+    constant = _KEY_TABLE.get(v)
+    if constant is None:
+        # ponytail: unknown v → url-path derivation (same as v=1)
+        # covers v=0, v=2, and any future rotations without code changes
         constant = urlparse(url).path or url.split("?")[0]
-    else:
-        constant = _KEY_TABLE.get(v)
-        if constant is None:
-            raise ValueError(f"Unknown v={v}, known: {list(_KEY_TABLE)} + [1]")
     return base64.b64encode(constant.encode()).decode()[:16]
 
 
