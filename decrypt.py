@@ -44,28 +44,46 @@ _KEY_TABLE = {
 }
 
 
-def _derive_key0(v: str, url: str = "") -> str:
+def _derive_key0(
+    v: str,
+    url: str = "",
+    *,
+    cache_ts: str = "",
+    time_header: str = "",
+) -> str:
     """Derive the first-layer decryption key from the `v` response header.
 
-    All current CoinGlass endpoints (100% as of 2025+) return v=1:
-      Key0 = base64(url_path)[:16]
-
-    Newer v values (0, 2, ...) also use url-path derivation — treat any
-    non-legacy v as url-path based.
-
-    Legacy v=55/66/77 (no longer in use):
-      Key0 = base64(constant_from_table)[:16]
+    CoinGlass rotates `v` on a daily cycle (webpack module 12471, function Xt):
+      v=0 → base64(request header cache-ts-v2)[:16]
+      v=1 → base64(url_path)[:16]
+      v=2 → base64(response header time)[:16]
+      v=55/66/77 → base64(legacy constant)[:16]
     """
-    constant = _KEY_TABLE.get(v)
-    if constant is None:
-        # ponytail: unknown v → url-path derivation (same as v=1)
-        # covers v=0, v=2, and any future rotations without code changes
+    if v == "0":
+        if not cache_ts:
+            raise ValueError("v=0 requires cache_ts (request header cache-ts-v2)")
+        constant = cache_ts
+    elif v == "1":
         constant = urlparse(url).path or url.split("?")[0]
+    elif v == "2":
+        if not time_header:
+            raise ValueError("v=2 requires time_header (response header time)")
+        constant = time_header
+    else:
+        constant = _KEY_TABLE.get(v)
+        if constant is None:
+            raise ValueError(f"Unknown v={v}, known: 0,1,2 + {list(_KEY_TABLE)}")
     return base64.b64encode(constant.encode()).decode()[:16]
 
 
 def decrypt(
-    encrypted_body: str, user_token_b64: str, v: str, url: str = ""
+    encrypted_body: str,
+    user_token_b64: str,
+    v: str,
+    url: str = "",
+    *,
+    cache_ts: str = "",
+    time_header: str = "",
 ) -> Dict[str, Any]:
     """
     Decrypt a CoinGlass encrypted API response.
@@ -75,6 +93,8 @@ def decrypt(
         user_token_b64: Value of the 'user' response header.
         v: Value of the 'v' response header.
         url: API URL (needed when v="1").
+        cache_ts: Request header cache-ts-v2 (needed when v="0").
+        time_header: Response header time (needed when v="2").
 
     Returns:
         Decrypted JSON as Python dict.
@@ -83,7 +103,7 @@ def decrypt(
     payload = base64.b64decode(outer["data"])
     token = base64.b64decode(user_token_b64)
 
-    key0 = _derive_key0(v, url)
+    key0 = _derive_key0(v, url, cache_ts=cache_ts, time_header=time_header)
 
     # Layer 1-2: decrypt user token → gunzip → actual key
     step1 = unpad(AES.new(key0.encode(), AES.MODE_ECB).decrypt(token), 16)
@@ -113,13 +133,14 @@ def fetch_and_decrypt(url: str, params: dict = None, timeout: int = 30) -> Dict[
     """
     import requests
 
+    cache_ts = str(int(time.time() * 1000))
     resp = requests.get(
         url,
         params=params or {},
         headers={
             "Accept": "application/json, text/plain, */*",
             "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-            "cache-ts-v2": str(int(time.time() * 1000)),
+            "cache-ts-v2": cache_ts,
             "encryption": "true",
             "language": "en",
             "Origin": "https://www.coinglass.com",
@@ -142,4 +163,11 @@ def fetch_and_decrypt(url: str, params: dict = None, timeout: int = 30) -> Dict[
         # Plain (non-encrypted) endpoint — return JSON directly
         return resp.json()
 
-    return decrypt(resp.text, user, v, url)
+    return decrypt(
+        resp.text,
+        user,
+        v,
+        url,
+        cache_ts=cache_ts,
+        time_header=resp.headers.get("time", ""),
+    )
